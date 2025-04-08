@@ -138,7 +138,7 @@ class TrainingManager:
         training_command = (
             "accelerate launch "
             "--config_file /opt/ml/input/data/config/accelerate_config.yaml "
-            "/home/open-r1/open-r1/src/open_r1/grpo_customized.py "
+            "/home/open-r1/open-r1-sagemaker/src/open_r1/grpo_customized.py "
             "--config /opt/ml/input/data/config/training_config.yaml"
         )
         
