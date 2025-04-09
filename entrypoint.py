@@ -119,8 +119,9 @@ class TrainingManager:
             'CUDA_VISIBLE_DEVICES': vllm_devices
         }
         vllm_command = (
-            f"trl vllm-serve --model /opt/ml/input/data/model "
-            f"--tensor-parallel-size {tensor_parallel_size}"
+            f"NCCL_P2P_DISABLE=1 NCCL_IB_DISABLE=1 trl vllm-serve --model /opt/ml/input/data/model "
+            f"--tensor-parallel-size {tensor_parallel_size} "
+            f"--gpu_memory_utilization 0.9 "
         )
         
         # Start the server and wait for it to be ready
@@ -136,7 +137,7 @@ class TrainingManager:
             'CUDA_VISIBLE_DEVICES': training_devices
         }
         training_command = (
-            "accelerate launch "
+            "NCCL_P2P_DISABLE=1 NCCL_IB_DISABLE=1 accelerate launch "
             "--config_file /opt/ml/input/data/config/accelerate_config.yaml "
             "/home/open-r1/open-r1-sagemaker/src/open_r1/grpo_customized.py "
             "--config /opt/ml/input/data/config/training_config.yaml"
