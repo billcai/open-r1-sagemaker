@@ -112,6 +112,7 @@ def main(script_args, training_args, model_args):
         trust_remote_code=model_args.trust_remote_code,
         attn_implementation=model_args.attn_implementation,
         torch_dtype=torch_dtype,
+        use_cache=False if training_args.gradient_checkpointing else True,
     )
     training_args.model_init_kwargs = model_kwargs
     training_args.beta = 0.0
@@ -171,6 +172,7 @@ def main(script_args, training_args, model_args):
     if trainer.accelerator.is_main_process:
         trainer.create_model_card(**kwargs)
         # Restore k,v cache for fast inference
+        trainer.model.config.use_cache = True
         trainer.model.config.save_pretrained(training_args.output_dir)
 
     ##########
