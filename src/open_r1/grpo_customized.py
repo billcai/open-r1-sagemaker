@@ -112,7 +112,6 @@ def main(script_args, training_args, model_args):
         trust_remote_code=model_args.trust_remote_code,
         attn_implementation=model_args.attn_implementation,
         torch_dtype=torch_dtype,
-        use_cache=False,
     )
     training_args.model_init_kwargs = model_kwargs
     training_args.beta = 0.0
