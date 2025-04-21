@@ -17,6 +17,7 @@ import os
 import sys
 
 import datasets
+import torch
 import transformers
 from datasets import load_dataset
 from transformers import set_seed
@@ -24,10 +25,11 @@ from transformers.trainer_utils import get_last_checkpoint
 
 from open_r1.configs import GRPOConfig, GRPOScriptArguments
 from open_r1.rewards import get_reward_funcs
-from open_r1.utils import get_model, get_tokenizer
+from open_r1.utils import get_tokenizer
 from open_r1.utils.callbacks import get_callbacks
 from open_r1.utils.wandb_logging import init_wandb_training
 from trl import GRPOTrainer, ModelConfig, TrlParser, get_peft_config
+from peft import LoraConfig
 
 
 logger = logging.getLogger(__name__)
@@ -79,12 +81,6 @@ def main(script_args, training_args, model_args):
     ################
     tokenizer = get_tokenizer(model_args, training_args)
 
-    ##############
-    # Load model #
-    ##############
-    logger.info("*** Loading model ***")
-    model = get_model(model_args, training_args)
-
     # Get reward functions from the registry
     reward_funcs = get_reward_funcs(script_args)
 
@@ -107,20 +103,41 @@ def main(script_args, training_args, model_args):
         if "messages" in dataset[split].column_names:
             dataset[split] = dataset[split].remove_columns("messages")
 
-    #############################
-    # Initialize the GRPO trainer
-    #############################
+    logger.info("*** Initializing model kwargs ***")
+    torch_dtype = (
+        model_args.torch_dtype if model_args.torch_dtype in ["auto", None] else getattr(torch, model_args.torch_dtype)
+    )
+    model_kwargs = dict(
+        revision=model_args.model_revision,
+        trust_remote_code=model_args.trust_remote_code,
+        attn_implementation=model_args.attn_implementation,
+        torch_dtype=torch_dtype,
+        use_cache=False if training_args.gradient_checkpointing else True,
+    )
+    training_args.model_init_kwargs = model_kwargs
     training_args.beta = 0.0
     training_args.scale_rewards = False
     training_args.epsilon_high=0.28
 
+    #############################
+    # Initialize the GRPO trainer
+    #############################
+    if model_args.lora_r:
+        peft_config= LoraConfig(
+            task_type="CAUSAL_LM",
+            r=model_args.lora_r,
+            lora_alpha=model_args.lora_alpha,
+            lora_dropout=model_args.lora_dropout,
+            target_modules=model_args.lora_target_modules,
+            inference_mode=False,
+        )
     trainer = GRPOTrainer(
-        model=model,
+        model=model_args.model_name_or_path,
         reward_funcs=reward_funcs,
         args=training_args,
         train_dataset=dataset[script_args.dataset_train_split],
         eval_dataset=dataset[script_args.dataset_test_split] if training_args.eval_strategy != "no" else None,
-        peft_config=get_peft_config(model_args),
+        peft_config=peft_config if model_args.lora_r else None,
         callbacks=get_callbacks(training_args, model_args),
         processing_class=tokenizer,
     )
