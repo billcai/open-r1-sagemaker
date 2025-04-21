@@ -122,21 +122,22 @@ def main(script_args, training_args, model_args):
     #############################
     # Initialize the GRPO trainer
     #############################
-    peft_config= LoraConfig(
-        task_type="CAUSAL_LM",
-        r=model_args.lora_r,
-        lora_alpha=model_args.lora_alpha,
-        lora_dropout=model_args.lora_dropout,
-        target_modules=model_args.lora_target_modules,
-        inference_mode=False,
-    )
+    if model_args.lora_r:
+        peft_config= LoraConfig(
+            task_type="CAUSAL_LM",
+            r=model_args.lora_r,
+            lora_alpha=model_args.lora_alpha,
+            lora_dropout=model_args.lora_dropout,
+            target_modules=model_args.lora_target_modules,
+            inference_mode=False,
+        )
     trainer = GRPOTrainer(
         model=model_args.model_name_or_path,
         reward_funcs=reward_funcs,
         args=training_args,
         train_dataset=dataset[script_args.dataset_train_split],
         eval_dataset=dataset[script_args.dataset_test_split] if training_args.eval_strategy != "no" else None,
-        peft_config=peft_config,
+        peft_config=peft_config if model_args.lora_r else None,
         callbacks=get_callbacks(training_args, model_args),
         processing_class=tokenizer,
     )
